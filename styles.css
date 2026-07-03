@@ -255,3 +255,4 @@ button { cursor: pointer; }
   .topbar, .sidebar, .sitefoot, .entry-actions, #trustBtn, #exportBtn { display: none !important; }
   .content { max-width: 100%; }
 }
+.modal-backdrop[hidden] { display: none; }
