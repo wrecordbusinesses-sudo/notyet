@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=3.0">
+<title>Not Yet — An Outline to Order</title>
+<meta name="description" content="Not Yet: a safe, secure, single place to keep your estate information — organized into Divisions you can add to, renew, or change at any time.">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand" id="logoHome">
+    <span class="brand-mark">Not Yet</span>
+    <span class="brand-tag">an outline to order</span>
+  </div>
+  <nav class="topnav">
+    <button class="btn ghost" id="exportBtn">Export My Data</button>
+    <label class="btn ghost file-btn">
+      Import
+      <input type="file" id="importFile" accept="application/json" hidden>
+    </label>
+    <button class="btn ghost" id="trustBtn">Trust &amp; Release Settings</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside class="sidebar" id="sidebar" aria-label="Divisions">
+    <button class="side-item home-item" data-view="home" id="homeNavBtn">🏠 Home</button>
+    <div class="side-group-label">Core Divisions</div>
+    <div id="coreDivisionList"></div>
+    <div class="side-group-label">Recommended Additions</div>
+    <div id="recDivisionList"></div>
+    <div class="side-group-label">System</div>
+    <button class="side-item" data-view="trust" id="trustNavBtn">🔐 Trust Anchors &amp; Release Settings</button>
+  </aside>
+
+  <main class="content" id="content">
+    <!-- rendered by app.js -->
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle">Add Entry</h2>
+    <form id="entryForm">
+      <label for="entryTitle">Title *</label>
+      <input type="text" id="entryTitle" required placeholder="e.g. First National Bank — Checking">
+
+      <label for="entryDetails">Details / Notes</label>
+      <textarea id="entryDetails" rows="5" placeholder="Anything that helps whoever reads this later..."></textarea>
+
+      <label for="entryFor">Who is this for? <span class="muted">(optional — for addressed, private items)</span></label>
+      <input type="text" id="entryFor" placeholder="e.g. My daughter Sarah">
+
+      <div class="modal-actions">
+        <button type="button" class="btn ghost" id="cancelEntryBtn">Cancel</button>
+        <button type="submit" class="btn primary" id="saveEntryBtn">Save Entry</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<footer class="sitefoot">
+  <p>Not Yet — a prototype built for Ed Murray &amp; the Record family. Everything you enter here stays in <strong>this browser only</strong> — nothing is sent to a server. Use Export regularly to keep a backup.</p>
+</footer>
+
+<script src="divisions.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
