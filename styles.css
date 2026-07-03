@@ -57,8 +57,10 @@ button { cursor: pointer; }
 }
 .btn.primary { background: var(--gold); color: #fff; border-color: var(--gold); }
 .btn.primary:hover { background: #9a7847; }
-.btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,0.55); }
-.btn.ghost:hover { background: rgba(255,255,255,0.12); }
+.btn.ghost { background: transparent; color: var(--navy); border-color: var(--line); }
+.btn.ghost:hover { background: var(--gold-light); }
+.topbar .btn.ghost { color: #fff; border-color: rgba(255,255,255,0.55); }
+.topbar .btn.ghost:hover { background: rgba(255,255,255,0.12); }
 .btn.danger { background: #fff; color: var(--danger); border-color: var(--danger); }
 .btn.danger:hover { background: #fbeceb; }
 .btn.small { font-size: 14px; padding: 6px 12px; }
