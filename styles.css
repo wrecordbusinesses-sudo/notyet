@@ -271,6 +271,7 @@ button { cursor: pointer; }
 .record-panel { margin-top: 10px; }
 .record-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .recording-indicator { display: inline-flex; align-items: center; gap: 6px; color: var(--danger); font-weight: 700; font-size: 14px; }
+.recording-indicator[hidden] { display: none; }
 .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); display: inline-block; animation: pulse 1s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 #recordPlayback { width: 100%; margin-top: 10px; }
@@ -302,6 +303,4 @@ button { cursor: pointer; }
 }
 
 @media print {
-  .topbar, .sidebar, .sitefoot, .entry-actions, #trustBtn, #exportBtn, .voice-fab, .voice-status { display: none !important; }
-  .content { max-width: 100%; }
-}
+  .topbar, .sidebar, .sitefoot, .entry-actions, #trustBtn, #exportBtn, .voice-fab, .voice-status { display: none 
