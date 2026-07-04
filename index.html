@@ -12,12 +12,16 @@
 <header class="topbar">
   <div class="brand" id="logoHome">
     <span class="brand-mark">Not Yet</span>
-    <span class="brand-tag">an outline to order</span>
+    <span class="brand-tag" id="brandTagText">an outline to order</span>
   </div>
   <nav class="topnav">
+    <label class="lang-picker">
+      <span class="lang-globe" aria-hidden="true">🌐</span>
+      <select id="langSelect" aria-label="Language"></select>
+    </label>
     <button class="btn ghost" id="exportBtn">Export My Data</button>
     <label class="btn ghost file-btn">
-      Import
+      <span id="importLabelText">Import</span>
       <input type="file" id="importFile" accept="application/json" hidden>
     </label>
     <button class="btn ghost" id="trustBtn">Trust &amp; Release Settings</button>
@@ -26,13 +30,13 @@
 
 <div class="layout">
   <aside class="sidebar" id="sidebar" aria-label="Divisions">
-    <button class="side-item home-item" data-view="home" id="homeNavBtn">🏠 Home</button>
-    <div class="side-group-label">Core Divisions</div>
+    <button class="side-item home-item" data-view="home" id="homeNavBtn">🏠 <span id="homeNavText">Home</span></button>
+    <div class="side-group-label" id="coreLabelText">Core Divisions</div>
     <div id="coreDivisionList"></div>
-    <div class="side-group-label">Recommended Additions</div>
+    <div class="side-group-label" id="recLabelText">Recommended Additions</div>
     <div id="recDivisionList"></div>
-    <div class="side-group-label">System</div>
-    <button class="side-item" data-view="trust" id="trustNavBtn">🔐 Trust Anchors &amp; Release Settings</button>
+    <div class="side-group-label" id="systemLabelText">System</div>
+    <button class="side-item" data-view="trust" id="trustNavBtn">🔐 <span id="trustNavText">Trust Anchors &amp; Release Settings</span></button>
   </aside>
 
   <main class="content" id="content">
@@ -44,14 +48,31 @@
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <h2 id="modalTitle">Add Entry</h2>
     <form id="entryForm">
-      <label for="entryTitle">Title *</label>
+      <label for="entryTitle" id="titleLabelText">Title *
+        <button type="button" class="mic-btn" id="dictateTitleBtn" title="Dictate" aria-label="Dictate title">🎤</button>
+      </label>
       <input type="text" id="entryTitle" required placeholder="e.g. First National Bank — Checking">
 
-      <label for="entryDetails">Details / Notes</label>
+      <label for="entryDetails" id="detailsLabelText">Details / Notes
+        <button type="button" class="mic-btn" id="dictateDetailsBtn" title="Dictate" aria-label="Dictate details">🎤</button>
+      </label>
       <textarea id="entryDetails" rows="5" placeholder="Anything that helps whoever reads this later..."></textarea>
 
-      <label for="entryFor">Who is this for? <span class="muted">(optional — for addressed, private items)</span></label>
+      <label for="entryFor" id="forLabelText">Who is this for? <span class="muted" id="forOptionalText">(optional — for addressed, private items)</span></label>
       <input type="text" id="entryFor" placeholder="e.g. My daughter Sarah">
+
+      <label id="recordLabelText">Voice note (optional)</label>
+      <div class="record-panel" id="recordPanel">
+        <div class="record-controls">
+          <button type="button" class="btn ghost small" id="recordStartBtn">🎙️ Record</button>
+          <button type="button" class="btn danger small" id="recordStopBtn" hidden>⏹️ Stop</button>
+          <button type="button" class="btn ghost small" id="recordRedoBtn" hidden>🔁 Re-record</button>
+          <button type="button" class="btn danger small" id="recordDeleteBtn" hidden>🗑️ Delete audio</button>
+          <span class="recording-indicator" id="recordingIndicator" hidden><span class="rec-dot"></span> Recording…</span>
+        </div>
+        <audio controls id="recordPlayback" hidden></audio>
+        <p class="mic-unsupported" id="micUnsupportedNote" hidden>Audio recording isn't supported in this browser.</p>
+      </div>
 
       <div class="modal-actions">
         <button type="button" class="btn ghost" id="cancelEntryBtn">Cancel</button>
@@ -61,10 +82,14 @@
   </div>
 </div>
 
-<footer class="sitefoot">
-  <p>Not Yet — a prototype built for Ed Murray &amp; the Record family. Everything you enter here stays in <strong>this browser only</strong> — nothing is sent to a server. Use Export regularly to keep a backup.</p>
+<button class="voice-fab" id="voiceFab" title="Voice control" aria-label="Voice control">🎤</button>
+<div class="voice-status" id="voiceStatus" role="status" aria-live="polite" hidden></div>
+
+<footer class="sitefoot" id="siteFoot">
+  <p id="footerNoteText">Not Yet — a prototype built for Ed Murray &amp; the Record family. Everything you enter here stays in <strong>this browser only</strong> — nothing is sent to a server. Use Export regularly to keep a backup.</p>
 </footer>
 
+<script src="i18n.js"></script>
 <script src="divisions.js"></script>
 <script src="app.js"></script>
 </body>

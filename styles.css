@@ -203,6 +203,7 @@ button { cursor: pointer; }
   position: fixed; inset: 0; background: rgba(20,25,35,0.55);
   display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 50;
 }
+.modal-backdrop[hidden] { display: none; }
 .modal {
   background: #fff; border-radius: var(--radius); padding: 28px; width: 100%; max-width: 520px;
   max-height: 90vh; overflow-y: auto;
@@ -247,6 +248,53 @@ button { cursor: pointer; }
   text-align: center; padding: 24px; color: var(--grey); font-size: 13px; border-top: 1px solid var(--line);
 }
 
+/* ---------- Language picker ---------- */
+.lang-picker { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.4); border-radius: 8px; padding: 6px 10px; }
+.lang-globe { font-size: 16px; }
+.lang-picker select {
+  background: transparent; color: #fff; border: none; font-size: 15px; font-weight: 600;
+  font-family: "Helvetica Neue", Arial, sans-serif; cursor: pointer;
+}
+.lang-picker select option { color: #1A1A1A; }
+
+/* ---------- Dictation mic buttons (in field labels) ---------- */
+.mic-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--gold-light); border: 2px solid var(--gold); border-radius: 999px;
+  width: 34px; height: 34px; font-size: 16px; margin-left: 8px; vertical-align: middle;
+  padding: 0;
+}
+.mic-btn:hover { background: var(--gold); }
+.mic-btn.listening { background: var(--danger); border-color: var(--danger); animation: pulse 1.2s infinite; }
+
+/* ---------- Audio recording panel ---------- */
+.record-panel { margin-top: 10px; }
+.record-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.recording-indicator { display: inline-flex; align-items: center; gap: 6px; color: var(--danger); font-weight: 700; font-size: 14px; }
+.rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--danger); display: inline-block; animation: pulse 1s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+#recordPlayback { width: 100%; margin-top: 10px; }
+.mic-unsupported { font-size: 13px; color: var(--grey); font-style: italic; margin: 6px 0 0; }
+
+/* ---------- Voice control floating button ---------- */
+.voice-fab {
+  position: fixed; bottom: 26px; right: 26px; width: 64px; height: 64px; border-radius: 50%;
+  background: var(--navy); color: #fff; font-size: 26px; border: 3px solid var(--gold);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.3); z-index: 60;
+}
+.voice-fab:hover { background: var(--navy-dark); }
+.voice-fab.listening { background: var(--danger); border-color: #fff; animation: pulse 1.2s infinite; }
+.voice-fab[hidden] { display: none; }
+.voice-status {
+  position: fixed; bottom: 100px; right: 26px; max-width: 280px; background: #fff;
+  border: 2px solid var(--gold); border-radius: 10px; padding: 12px 16px; font-size: 14px;
+  color: var(--ink); box-shadow: 0 4px 14px rgba(0,0,0,0.2); z-index: 60;
+}
+.voice-status[hidden] { display: none; }
+
+/* ---------- Read-aloud button ---------- */
+.read-aloud-btn { margin-left: 10px; }
+
 @media (max-width: 800px) {
   .layout { flex-direction: column; }
   .sidebar { width: 100%; position: static; max-height: none; }
@@ -254,7 +302,6 @@ button { cursor: pointer; }
 }
 
 @media print {
-  .topbar, .sidebar, .sitefoot, .entry-actions, #trustBtn, #exportBtn { display: none !important; }
+  .topbar, .sidebar, .sitefoot, .entry-actions, #trustBtn, #exportBtn, .voice-fab, .voice-status { display: none !important; }
   .content { max-width: 100%; }
 }
-.modal-backdrop[hidden] { display: none; }

@@ -9,7 +9,7 @@ function loadState() {
     try { return JSON.parse(raw); } catch (e) { /* fall through to default */ }
   }
   return {
-    entries: {},        // { divisionKey: [ {id, title, details, forWhom, created, updated} ] }
+    entries: {},        // { divisionKey: [ {id, title, details, forWhom, created, updated, audioData, audioMime} ] }
     trustAnchors: [],   // [ {id, name, relation} ]
     quorum: 2,
     ledger: [],          // [ {time, action, division, title} ]
@@ -41,7 +41,75 @@ function divisionByKey(key) {
   return ALL_DIVISIONS.find((d) => d.key === key);
 }
 
-// ---------- Sidebar ----------
+// ============================================================
+// Feature detection
+// ============================================================
+const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+function supportsSpeechRecognition() { return !!SpeechRecognitionAPI; }
+function supportsMediaRecorder() {
+  return !!(window.MediaRecorder && navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+}
+function supportsSpeechSynthesis() { return !!window.speechSynthesis; }
+function currentSpeechLang() {
+  const l = LANGUAGES.find((x) => x.code === getLang());
+  return l ? l.speech : "en-US";
+}
+
+// ============================================================
+// Language
+// ============================================================
+function initLanguageSelect() {
+  const sel = document.getElementById("langSelect");
+  sel.innerHTML = "";
+  LANGUAGES.forEach((l) => {
+    const opt = document.createElement("option");
+    opt.value = l.code;
+    opt.textContent = l.label;
+    sel.appendChild(opt);
+  });
+  sel.value = getLang();
+  sel.addEventListener("change", (e) => {
+    setLangStorage(e.target.value);
+    document.documentElement.lang = e.target.value;
+    buildDivisions();
+    applyStaticTranslations();
+    render();
+  });
+}
+
+function applyStaticTranslations() {
+  document.getElementById("brandTagText").textContent = t("ui.brandTag");
+  document.getElementById("exportBtn").textContent = t("ui.exportBtn");
+  document.getElementById("importLabelText").textContent = t("ui.importBtn");
+  document.getElementById("trustBtn").innerHTML = "🔐 " + t("ui.trustBtn");
+  document.getElementById("homeNavText").textContent = t("ui.homeNav");
+  document.getElementById("coreLabelText").textContent = t("ui.coreDivisionsLabel");
+  document.getElementById("recLabelText").textContent = t("ui.recommendedLabel");
+  document.getElementById("systemLabelText").textContent = t("ui.systemLabel");
+  document.getElementById("trustNavText").textContent = t("ui.trustBtn");
+  document.getElementById("footerNoteText").textContent = t("ui.footerNote");
+  document.getElementById("titleLabelText").firstChild.textContent = t("ui.titleLabel") + " ";
+  document.getElementById("entryTitle").placeholder = t("ui.titlePlaceholder");
+  document.getElementById("detailsLabelText").firstChild.textContent = t("ui.detailsLabel") + " ";
+  document.getElementById("entryDetails").placeholder = t("ui.detailsPlaceholder");
+  document.getElementById("forLabelText").firstChild.textContent = t("ui.forInputLabel") + " ";
+  document.getElementById("forOptionalText").textContent = t("ui.forInputOptional");
+  document.getElementById("entryFor").placeholder = t("ui.forPlaceholder");
+  document.getElementById("recordLabelText").textContent = t("ui.recordLabel");
+  document.getElementById("recordStartBtn").textContent = t("ui.recordStart");
+  document.getElementById("recordStopBtn").textContent = t("ui.recordStop");
+  document.getElementById("recordRedoBtn").textContent = t("ui.recordRedo");
+  document.getElementById("recordDeleteBtn").textContent = t("ui.recordDelete");
+  document.getElementById("micUnsupportedNote").textContent = t("ui.micNotSupported");
+  document.getElementById("cancelEntryBtn").textContent = t("ui.cancelBtn");
+  document.getElementById("saveEntryBtn").textContent = t("ui.saveBtn");
+  const rIndicator = document.getElementById("recordingIndicator");
+  rIndicator.innerHTML = `<span class="rec-dot"></span> ${t("ui.recordingInProgress")}`;
+}
+
+// ============================================================
+// Sidebar
+// ============================================================
 function renderSidebar() {
   const coreWrap = document.getElementById("coreDivisionList");
   const recWrap = document.getElementById("recDivisionList");
@@ -63,7 +131,9 @@ function sideItem(d) {
   return btn;
 }
 
-// ---------- Views ----------
+// ============================================================
+// Views
+// ============================================================
 function render() {
   renderSidebar();
   const content = document.getElementById("content");
@@ -79,23 +149,19 @@ function renderHome() {
   const hero = document.createElement("div");
   hero.className = "hero";
   hero.innerHTML = `
-    <h1>Not Yet</h1>
-    <p>An outline to order. One safe, secure place for everything tied to your estate —
-    organized into Divisions you can add to, renew, update, or delete at any time.
-    Nothing is ever locked in.</p>
-    <p class="privacy-note">🔒 This is a working prototype. Everything you type stays in this browser
-    (local storage) — nothing is uploaded anywhere. Use “Export My Data” up top to keep a backup,
-    or move to another device.</p>
+    <h1>${t("ui.heroTitle")}</h1>
+    <p>${t("ui.heroP1")}</p>
+    <p class="privacy-note">${t("ui.heroPrivacy")}</p>
   `;
   wrap.appendChild(hero);
 
   const h2 = document.createElement("h2");
-  h2.textContent = "Core Divisions";
+  h2.textContent = t("ui.coreDivisionsLabel");
   wrap.appendChild(h2);
   wrap.appendChild(tileGrid(CORE_DIVISIONS));
 
   const h3 = document.createElement("h2");
-  h3.textContent = "Recommended Additions";
+  h3.textContent = t("ui.recommendedLabel");
   h3.style.marginTop = "28px";
   wrap.appendChild(h3);
   wrap.appendChild(tileGrid(RECOMMENDED_DIVISIONS));
@@ -104,10 +170,9 @@ function renderHome() {
   trustCard.className = "card";
   trustCard.style.marginTop = "28px";
   trustCard.innerHTML = `
-    <h2>🔐 Trust Anchors &amp; Release Settings</h2>
-    <p>Not a Division for your information — this is where you decide who can ever unlock this
-    record, and how. See the Not Yet Protocol in action.</p>
-    <button class="btn primary" id="goTrustBtn">Open Trust &amp; Release Settings</button>
+    <h2>${t("ui.trustCardTitle")}</h2>
+    <p>${t("ui.trustCardBody")}</p>
+    <button class="btn primary" id="goTrustBtn">${t("ui.trustCardBtn")}</button>
   `;
   wrap.appendChild(trustCard);
   trustCard.querySelector("#goTrustBtn").addEventListener("click", () => { currentView = "trust"; render(); });
@@ -119,6 +184,8 @@ function tileGrid(list) {
   const grid = document.createElement("div");
   grid.className = "tile-grid";
   list.forEach((d) => {
+    const count = entriesFor(d.key).length;
+    const word = count === 1 ? t("ui.entryWord") : t("ui.entriesWord");
     const tile = document.createElement("div");
     tile.className = "tile";
     tile.innerHTML = `
@@ -126,7 +193,7 @@ function tileGrid(list) {
         <div class="tile-icon">${d.icon}</div>
         <h3>${d.name}</h3>
         <p>${d.desc}</p>
-        <div class="tile-count">${entriesFor(d.key).length} ${entriesFor(d.key).length === 1 ? "entry" : "entries"}</div>
+        <div class="tile-count">${count} ${word}</div>
       </button>`;
     tile.querySelector("button").addEventListener("click", () => { currentView = d.key; render(); });
     grid.appendChild(tile);
@@ -144,16 +211,18 @@ function renderDivision(key) {
   header.innerHTML = `
     <div>
       <span class="tier-badge" style="background:${tier.color}">${tier.label}</span>
-      <h1><span class="division-icon">${d.icon}</span>${d.name}</h1>
+      <h1><span class="division-icon">${d.icon}</span>${d.name}
+        ${supportsSpeechSynthesis() ? `<button class="btn ghost small read-aloud-btn" id="readAloudBtn">${t("ui.readAloudBtn")}</button>` : ""}
+      </h1>
       <p class="division-desc">${d.desc}</p>
     </div>
-    <button class="btn primary" id="addEntryBtn">+ Add Entry</button>
+    <button class="btn primary" id="addEntryBtn">${t("ui.addEntryBtn")}</button>
   `;
   wrap.appendChild(header);
 
   const hint = document.createElement("div");
   hint.className = "division-hint";
-  hint.innerHTML = `<strong>Ideas for this Division:</strong> ${d.hint}<br><em>${tier.explain}</em>`;
+  hint.innerHTML = `<strong>${t("ui.ideasForDivision")}</strong> ${d.hint}<br><em>${tier.explain}</em>`;
   wrap.appendChild(hint);
 
   const list = entriesFor(key);
@@ -161,13 +230,15 @@ function renderDivision(key) {
   listWrap.className = "entry-list";
 
   if (list.length === 0) {
-    listWrap.innerHTML = `<div class="empty-state">Nothing added to this Division yet. Click “+ Add Entry” to start.</div>`;
+    listWrap.innerHTML = `<div class="empty-state">${t("ui.emptyDivision")}</div>`;
   } else {
     list.slice().reverse().forEach((entry) => listWrap.appendChild(entryCard(key, entry)));
   }
   wrap.appendChild(listWrap);
 
   header.querySelector("#addEntryBtn").addEventListener("click", () => openEntryModal(key));
+  const readBtn = header.querySelector("#readAloudBtn");
+  if (readBtn) readBtn.addEventListener("click", () => speak(`${d.name}. ${d.desc} ${d.hint}`));
   return wrap;
 }
 
@@ -175,13 +246,14 @@ function entryCard(divisionKey, entry) {
   const card = document.createElement("div");
   card.className = "entry-card";
   card.innerHTML = `
-    ${entry.forWhom ? `<div class="entry-for">For: ${escapeHtml(entry.forWhom)}</div>` : ""}
+    ${entry.forWhom ? `<div class="entry-for">${t("ui.forLabel")} ${escapeHtml(entry.forWhom)}</div>` : ""}
     <h4>${escapeHtml(entry.title)}</h4>
-    <div class="entry-meta">Renewed ${entry.updated}</div>
+    <div class="entry-meta">${t("ui.renewedLabel")} ${entry.updated}</div>
     ${entry.details ? `<div class="entry-details">${escapeHtml(entry.details)}</div>` : ""}
+    ${entry.audioData ? `<audio controls src="${entry.audioData}" style="width:100%;margin-bottom:10px;"></audio>` : ""}
     <div class="entry-actions">
-      <button class="btn ghost small edit-btn">Edit / Renew</button>
-      <button class="btn danger small del-btn">Delete</button>
+      <button class="btn ghost small edit-btn">${t("ui.editRenewBtn")}</button>
+      <button class="btn danger small del-btn">${t("ui.deleteBtn")}</button>
     </div>
   `;
   card.style.borderLeftColor = TIER_INFO[divisionByKey(divisionKey).tier].color;
@@ -196,25 +268,37 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// ---------- Modal / entry CRUD ----------
+// ============================================================
+// Modal / entry CRUD
+// ============================================================
+let pendingAudioData = null;
+let pendingAudioMime = null;
+
 function openEntryModal(divisionKey, entryId) {
   editingDivision = divisionKey;
   editingEntryId = entryId || null;
   const d = divisionByKey(divisionKey);
 
   document.getElementById("modalTitle").textContent = entryId
-    ? `Edit / Renew — ${d.name}`
-    : `Add Entry — ${d.name}`;
+    ? t("ui.modalEditPrefix") + d.name
+    : t("ui.modalAddPrefix") + d.name;
 
   const titleInput = document.getElementById("entryTitle");
   const detailsInput = document.getElementById("entryDetails");
   const forInput = document.getElementById("entryFor");
+
+  resetRecordingUI();
 
   if (entryId) {
     const entry = entriesFor(divisionKey).find((e) => e.id === entryId);
     titleInput.value = entry.title;
     detailsInput.value = entry.details || "";
     forInput.value = entry.forWhom || "";
+    if (entry.audioData) {
+      pendingAudioData = entry.audioData;
+      pendingAudioMime = entry.audioMime;
+      showRecordingPlayback(entry.audioData);
+    }
   } else {
     titleInput.value = "";
     detailsInput.value = "";
@@ -229,10 +313,12 @@ function closeEntryModal() {
   document.getElementById("modalBackdrop").hidden = true;
   editingDivision = null;
   editingEntryId = null;
+  stopDictation();
+  stopActiveRecording();
 }
 
 function saveEntryFromForm(evt) {
-  evt.preventDefault();
+  if (evt) evt.preventDefault();
   const title = document.getElementById("entryTitle").value.trim();
   const details = document.getElementById("entryDetails").value.trim();
   const forWhom = document.getElementById("entryFor").value.trim();
@@ -244,11 +330,14 @@ function saveEntryFromForm(evt) {
   if (editingEntryId) {
     const entry = state.entries[editingDivision].find((e) => e.id === editingEntryId);
     entry.title = title; entry.details = details; entry.forWhom = forWhom; entry.updated = now;
+    entry.audioData = pendingAudioData || null;
+    entry.audioMime = pendingAudioMime || null;
     log("Renewed", divisionByKey(editingDivision).name, title);
   } else {
     state.entries[editingDivision].push({
       id: "e" + Date.now() + Math.random().toString(36).slice(2, 7),
       title, details, forWhom, created: now, updated: now,
+      audioData: pendingAudioData || null, audioMime: pendingAudioMime || null,
     });
     log("Added", divisionByKey(editingDivision).name, title);
   }
@@ -259,45 +348,278 @@ function saveEntryFromForm(evt) {
 
 function deleteEntry(divisionKey, entryId) {
   const entry = entriesFor(divisionKey).find((e) => e.id === entryId);
-  if (!confirm(`Delete "${entry.title}"? This can't be undone.`)) return;
+  if (!confirm(`${t("ui.deleteConfirmPrefix")}${entry.title}${t("ui.deleteConfirmSuffix")}`)) return;
   state.entries[divisionKey] = entriesFor(divisionKey).filter((e) => e.id !== entryId);
   log("Deleted", divisionByKey(divisionKey).name, entry.title);
   saveState();
   render();
 }
 
-// ---------- Trust & Release Settings ----------
+// ============================================================
+// Audio recording (voice notes on entries)
+// ============================================================
+let mediaRecorder = null;
+let audioChunks = [];
+let activeStream = null;
+
+function pickAudioMime() {
+  const candidates = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"];
+  for (const c of candidates) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(c)) return c;
+  }
+  return "";
+}
+
+function resetRecordingUI() {
+  pendingAudioData = null;
+  pendingAudioMime = null;
+  document.getElementById("recordStartBtn").hidden = false;
+  document.getElementById("recordStopBtn").hidden = true;
+  document.getElementById("recordRedoBtn").hidden = true;
+  document.getElementById("recordDeleteBtn").hidden = true;
+  document.getElementById("recordingIndicator").hidden = true;
+  const playback = document.getElementById("recordPlayback");
+  playback.hidden = true;
+  playback.removeAttribute("src");
+}
+
+function showRecordingPlayback(dataUrl) {
+  document.getElementById("recordStartBtn").hidden = true;
+  document.getElementById("recordStopBtn").hidden = true;
+  document.getElementById("recordRedoBtn").hidden = false;
+  document.getElementById("recordDeleteBtn").hidden = false;
+  document.getElementById("recordingIndicator").hidden = true;
+  const playback = document.getElementById("recordPlayback");
+  playback.src = dataUrl;
+  playback.hidden = false;
+}
+
+function startRecording() {
+  if (!supportsMediaRecorder()) return;
+  navigator.mediaDevices.getUserMedia({ audio: true }).then((stream) => {
+    activeStream = stream;
+    audioChunks = [];
+    const mimeType = pickAudioMime();
+    mediaRecorder = mimeType ? new MediaRecorder(stream, { mimeType, audioBitsPerSecond: 32000 }) : new MediaRecorder(stream);
+    mediaRecorder.addEventListener("dataavailable", (e) => { if (e.data.size > 0) audioChunks.push(e.data); });
+    mediaRecorder.addEventListener("stop", () => {
+      const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      const reader = new FileReader();
+      reader.onload = () => {
+        pendingAudioData = reader.result;
+        pendingAudioMime = blob.type;
+        showRecordingPlayback(pendingAudioData);
+      };
+      reader.readAsDataURL(blob);
+      if (activeStream) { activeStream.getTracks().forEach((tr) => tr.stop()); activeStream = null; }
+    });
+    mediaRecorder.start();
+    document.getElementById("recordStartBtn").hidden = true;
+    document.getElementById("recordStopBtn").hidden = false;
+    document.getElementById("recordingIndicator").hidden = false;
+  }).catch(() => {
+    alert(t("ui.micNotSupported"));
+  });
+}
+
+function stopRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+}
+
+function stopActiveRecording() {
+  if (mediaRecorder && mediaRecorder.state === "recording") mediaRecorder.stop();
+  if (activeStream) { activeStream.getTracks().forEach((tr) => tr.stop()); activeStream = null; }
+}
+
+// ============================================================
+// Dictation (voice-to-text for Title / Details fields)
+// ============================================================
+let dictationRecognition = null;
+let dictationTargetInput = null;
+let dictationTargetBtn = null;
+
+function toggleDictation(inputEl, btnEl) {
+  if (!supportsSpeechRecognition()) { alert(t("ui.voiceNotSupported")); return; }
+  if (dictationRecognition && dictationTargetInput === inputEl) {
+    stopDictation();
+    return;
+  }
+  stopDictation();
+  dictationTargetInput = inputEl;
+  dictationTargetBtn = btnEl;
+  dictationRecognition = new SpeechRecognitionAPI();
+  dictationRecognition.continuous = true;
+  dictationRecognition.interimResults = false;
+  dictationRecognition.lang = currentSpeechLang();
+  dictationRecognition.addEventListener("result", (e) => {
+    let finalText = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
+    }
+    if (finalText) {
+      inputEl.value = (inputEl.value ? inputEl.value.trim() + " " : "") + finalText.trim();
+    }
+  });
+  dictationRecognition.addEventListener("end", () => {
+    btnEl.classList.remove("listening");
+    if (dictationTargetInput === inputEl) { dictationRecognition = null; dictationTargetInput = null; dictationTargetBtn = null; }
+  });
+  dictationRecognition.addEventListener("error", () => {
+    btnEl.classList.remove("listening");
+  });
+  btnEl.classList.add("listening");
+  dictationRecognition.start();
+}
+
+function stopDictation() {
+  if (dictationRecognition) {
+    try { dictationRecognition.stop(); } catch (e) { /* no-op */ }
+  }
+  if (dictationTargetBtn) dictationTargetBtn.classList.remove("listening");
+  dictationRecognition = null;
+  dictationTargetInput = null;
+  dictationTargetBtn = null;
+}
+
+// ============================================================
+// Read aloud (text-to-speech)
+// ============================================================
+function speak(text) {
+  if (!supportsSpeechSynthesis()) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = currentSpeechLang();
+  const voices = window.speechSynthesis.getVoices();
+  const match = voices.find((v) => v.lang && v.lang.toLowerCase().startsWith(getLang()));
+  if (match) u.voice = match;
+  window.speechSynthesis.speak(u);
+}
+
+// ============================================================
+// Voice control (navigation by spoken command)
+// ============================================================
+let commandRecognition = null;
+let voiceActive = false;
+
+function setVoiceStatus(msg) {
+  const el = document.getElementById("voiceStatus");
+  if (!msg) { el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = msg;
+}
+
+function toggleVoiceControl() {
+  if (voiceActive) { stopVoiceControl(); return; }
+  if (!supportsSpeechRecognition()) { setVoiceStatus(t("ui.voiceNotSupported")); return; }
+  voiceActive = true;
+  document.getElementById("voiceFab").classList.add("listening");
+  setVoiceStatus(t("ui.voiceListening"));
+  startCommandRecognition();
+}
+
+function startCommandRecognition() {
+  commandRecognition = new SpeechRecognitionAPI();
+  commandRecognition.continuous = true;
+  commandRecognition.interimResults = false;
+  commandRecognition.lang = currentSpeechLang();
+  commandRecognition.addEventListener("result", (e) => {
+    const last = e.results[e.results.length - 1];
+    if (last.isFinal) {
+      const text = normalizeVoiceText(last[0].transcript);
+      handleVoiceCommand(text);
+    }
+  });
+  commandRecognition.addEventListener("end", () => {
+    if (voiceActive) {
+      try { commandRecognition.start(); } catch (e) { /* already started / no-op */ }
+    }
+  });
+  commandRecognition.addEventListener("error", (e) => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      stopVoiceControl();
+      setVoiceStatus(t("ui.voiceNotSupported"));
+    }
+  });
+  commandRecognition.start();
+}
+
+function stopVoiceControl() {
+  voiceActive = false;
+  document.getElementById("voiceFab").classList.remove("listening");
+  setVoiceStatus(null);
+  if (commandRecognition) {
+    try { commandRecognition.stop(); } catch (e) { /* no-op */ }
+  }
+  commandRecognition = null;
+}
+
+function handleVoiceCommand(text) {
+  const lang = getLang();
+  const cmds = VOICE_COMMANDS[lang] || VOICE_COMMANDS.en;
+  const matches = (phrases) => phrases.some((p) => text.includes(p) || p.includes(text));
+
+  if (matches(cmds.stop)) { stopVoiceControl(); return; }
+  if (matches(cmds.home)) { currentView = "home"; render(); setVoiceStatus(t("ui.voiceListening")); return; }
+  if (matches(cmds.cancel)) {
+    if (!document.getElementById("modalBackdrop").hidden) closeEntryModal();
+    setVoiceStatus(t("ui.voiceListening"));
+    return;
+  }
+  if (matches(cmds.save)) {
+    if (!document.getElementById("modalBackdrop").hidden) saveEntryFromForm(null);
+    setVoiceStatus(t("ui.voiceListening"));
+    return;
+  }
+  if (matches(cmds.addEntry)) {
+    if (currentView !== "home" && currentView !== "trust") openEntryModal(currentView);
+    setVoiceStatus(t("ui.voiceListening"));
+    return;
+  }
+  if (matches(cmds.read)) {
+    const d = divisionByKey(currentView);
+    if (d) speak(`${d.name}. ${d.desc} ${d.hint}`);
+    setVoiceStatus(t("ui.voiceListening"));
+    return;
+  }
+  // Try matching a division name
+  const found = ALL_DIVISIONS.find((d) => {
+    const norm = normalizeVoiceText(d.name);
+    return text.includes(norm) || norm.includes(text);
+  });
+  if (found) { currentView = found.key; render(); }
+  setVoiceStatus(t("ui.voiceListening"));
+}
+
+// ============================================================
+// Trust & Release Settings
+// ============================================================
 function renderTrust() {
   const wrap = document.createElement("div");
-  wrap.innerHTML = `<h1>🔐 Trust Anchors &amp; Release Settings</h1>`;
+  wrap.innerHTML = `<h1>${t("ui.trustPageTitle")}</h1>`;
 
   const callout = document.createElement("div");
   callout.className = "callout";
-  callout.innerHTML = `This screen demonstrates the <strong>Not Yet Protocol</strong> concept: while you're alive,
-    nobody — not even a Trust Anchor — can see your Divisions. Only when enough Anchors independently confirm
-    your passing, plus one objective signal, does a 48–72 hour reversible hold begin. Only then do Divisions
-    release, in tiers. <em>Nothing here actually verifies death or encrypts data — it's a demonstration of the
-    idea for review, not a working security system.</em>`;
+  callout.textContent = t("ui.trustCallout");
   wrap.appendChild(callout);
 
   // Trust Anchors card
   const anchorCard = document.createElement("div");
   anchorCard.className = "card";
   anchorCard.innerHTML = `
-    <h2>Trust Anchors</h2>
-    <p>People who, together, can confirm your passing. No single Anchor can act alone.</p>
+    <h2>${t("ui.anchorsTitle")}</h2>
+    <p>${t("ui.anchorsDesc")}</p>
     <div id="anchorList"></div>
     <div class="inline-form">
-      <input type="text" id="anchorName" placeholder="Name">
-      <input type="text" id="anchorRel" placeholder="Relationship (e.g. Daughter, Attorney, Community Manager)">
-      <button class="btn primary" id="addAnchorBtn">+ Add Anchor</button>
+      <input type="text" id="anchorName" placeholder="${t("ui.namePlaceholder")}">
+      <input type="text" id="anchorRel" placeholder="${t("ui.relPlaceholder")}">
+      <button class="btn primary" id="addAnchorBtn">${t("ui.addAnchorBtn")}</button>
     </div>
   `;
   wrap.appendChild(anchorCard);
 
   const anchorList = anchorCard.querySelector("#anchorList");
   if (state.trustAnchors.length === 0) {
-    anchorList.innerHTML = `<div class="empty-state">No Trust Anchors added yet.</div>`;
+    anchorList.innerHTML = `<div class="empty-state">${t("ui.noAnchors")}</div>`;
   } else {
     state.trustAnchors.forEach((a) => {
       const row = document.createElement("div");
@@ -305,7 +627,7 @@ function renderTrust() {
       row.innerHTML = `<span class="name">${escapeHtml(a.name)}</span><span class="rel">${escapeHtml(a.relation)}</span>`;
       const rm = document.createElement("button");
       rm.className = "btn ghost small";
-      rm.textContent = "Remove";
+      rm.textContent = t("ui.removeBtn");
       rm.addEventListener("click", () => {
         state.trustAnchors = state.trustAnchors.filter((x) => x.id !== a.id);
         if (state.quorum > state.trustAnchors.length) state.quorum = Math.max(1, state.trustAnchors.length);
@@ -320,7 +642,7 @@ function renderTrust() {
     const name = document.getElementById("anchorName").value.trim();
     const relation = document.getElementById("anchorRel").value.trim();
     if (!name) return;
-    state.trustAnchors.push({ id: "a" + Date.now(), name, relation: relation || "Trust Anchor" });
+    state.trustAnchors.push({ id: "a" + Date.now(), name, relation: relation || t("ui.anchorsTitle") });
     log("Added Trust Anchor", "System", name);
     saveState();
     render();
@@ -332,16 +654,15 @@ function renderTrust() {
   const maxAnchors = Math.max(state.trustAnchors.length, 1);
   let options = "";
   for (let i = 1; i <= maxAnchors; i++) {
-    options += `<option value="${i}" ${state.quorum === i ? "selected" : ""}>${i} of ${maxAnchors}</option>`;
+    options += `<option value="${i}" ${state.quorum === i ? "selected" : ""}>${i}${t("ui.quorumOf")}${maxAnchors}</option>`;
   }
   quorumCard.innerHTML = `
-    <h2>Verification Quorum</h2>
-    <p>How many Trust Anchors must independently confirm your passing — plus one objective signal
-    (death certificate, funeral home, or obituary match) — before the reversible hold begins.</p>
+    <h2>${t("ui.quorumTitle")}</h2>
+    <p>${t("ui.quorumDesc")}</p>
     <div class="inline-form">
-      <label for="quorumSelect" style="align-self:center;font-weight:700;">Require</label>
+      <label for="quorumSelect" style="align-self:center;font-weight:700;">${t("ui.requireLabel")}</label>
       <select id="quorumSelect">${options}</select>
-      <span style="align-self:center;color:var(--grey)">Anchors to agree, then a 48–72 hr hold before anything unlocks.</span>
+      <span style="align-self:center;color:var(--grey)">${t("ui.quorumTail")}</span>
     </div>
   `;
   wrap.appendChild(quorumCard);
@@ -354,18 +675,18 @@ function renderTrust() {
   const tierCard = document.createElement("div");
   tierCard.className = "card";
   tierCard.innerHTML = `
-    <h2>Graduated Release by Tier</h2>
+    <h2>${t("ui.tierSectionTitle")}</h2>
     <table class="tier-table">
-      <tr><th>Tier</th><th>What Releases</th><th>Who Sees It</th></tr>
+      <tr><th>${t("ui.tierColTier")}</th><th>${t("ui.tierColWhat")}</th><th>${t("ui.tierColWho")}</th></tr>
       <tr><td><span class="tier-badge" style="background:${TIER_INFO[1].color}">${TIER_INFO[1].label}</span></td>
-          <td>Advance Directives, Funeral Arrangements, Personal Data, Key Contacts, Pets &amp; Dependents</td>
-          <td>Everyone the owner designates — immediately once the Quorum is met.</td></tr>
+          <td>${t("ui.tier1What")}</td>
+          <td>${t("ui.tier1Who")}</td></tr>
       <tr><td><span class="tier-badge" style="background:${TIER_INFO[2].color}">${TIER_INFO[2].label}</span></td>
-          <td>Wills &amp; Trusts, Assets &amp; Liabilities, Insurance, Banks, Cards, Stocks &amp; Bonds, Property/Vehicle Titles, Digital Accounts</td>
-          <td>Named executor / legal representative only, after the hold clears.</td></tr>
+          <td>${t("ui.tier2What")}</td>
+          <td>${t("ui.tier2Who")}</td></tr>
       <tr><td><span class="tier-badge" style="background:${TIER_INFO[3].color}">${TIER_INFO[3].label}</span></td>
-          <td>Personal Items &amp; Distribution, Voice &amp; Written Notes, Photo Locker</td>
-          <td>Only the individual person each entry is addressed to.</td></tr>
+          <td>${t("ui.tier3What")}</td>
+          <td>${t("ui.tier3Who")}</td></tr>
     </table>
   `;
   wrap.appendChild(tierCard);
@@ -373,13 +694,11 @@ function renderTrust() {
   // Ledger
   const ledgerCard = document.createElement("div");
   ledgerCard.className = "card";
-  ledgerCard.innerHTML = `<h2>Immutable Access Ledger</h2>
-    <p>Every add, renew, and delete in this prototype is logged here — a stand-in for the tamper-evident
-    log that would prove nothing was altered or viewed early.</p>`;
+  ledgerCard.innerHTML = `<h2>${t("ui.ledgerTitle")}</h2><p>${t("ui.ledgerDesc")}</p>`;
   const ledgerWrap = document.createElement("div");
   ledgerWrap.className = "ledger";
   if (state.ledger.length === 0) {
-    ledgerWrap.innerHTML = `<div class="empty-state">No activity yet.</div>`;
+    ledgerWrap.innerHTML = `<div class="empty-state">${t("ui.noActivity")}</div>`;
   } else {
     state.ledger.forEach((l) => {
       const row = document.createElement("div");
@@ -394,7 +713,9 @@ function renderTrust() {
   return wrap;
 }
 
-// ---------- Export / Import ----------
+// ============================================================
+// Export / Import
+// ============================================================
 function exportData() {
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -422,7 +743,9 @@ function importData(file) {
   reader.readAsText(file);
 }
 
-// ---------- Wire up ----------
+// ============================================================
+// Wire up
+// ============================================================
 document.getElementById("logoHome").addEventListener("click", () => { currentView = "home"; render(); });
 document.getElementById("homeNavBtn").addEventListener("click", () => { currentView = "home"; render(); });
 document.getElementById("trustNavBtn").addEventListener("click", () => { currentView = "trust"; render(); });
@@ -436,4 +759,35 @@ document.getElementById("importFile").addEventListener("change", (e) => {
   e.target.value = "";
 });
 
+// Dictation buttons
+document.getElementById("dictateTitleBtn").addEventListener("click", () =>
+  toggleDictation(document.getElementById("entryTitle"), document.getElementById("dictateTitleBtn")));
+document.getElementById("dictateDetailsBtn").addEventListener("click", () =>
+  toggleDictation(document.getElementById("entryDetails"), document.getElementById("dictateDetailsBtn")));
+
+// Recording buttons
+document.getElementById("recordStartBtn").addEventListener("click", startRecording);
+document.getElementById("recordStopBtn").addEventListener("click", stopRecording);
+document.getElementById("recordRedoBtn").addEventListener("click", () => { resetRecordingUI(); });
+document.getElementById("recordDeleteBtn").addEventListener("click", () => { resetRecordingUI(); });
+
+// Voice control fab
+document.getElementById("voiceFab").addEventListener("click", toggleVoiceControl);
+if (!supportsSpeechRecognition()) {
+  document.getElementById("voiceFab").title = t("ui.voiceNotSupported");
+}
+if (!supportsMediaRecorder()) {
+  document.getElementById("micUnsupportedNote").hidden = false;
+  document.getElementById("recordStartBtn").hidden = true;
+}
+if (!supportsSpeechRecognition()) {
+  document.getElementById("dictateTitleBtn").style.opacity = "0.4";
+  document.getElementById("dictateDetailsBtn").style.opacity = "0.4";
+}
+
+// ---------- Boot ----------
+document.documentElement.lang = getLang();
+initLanguageSelect();
+buildDivisions();
+applyStaticTranslations();
 render();
